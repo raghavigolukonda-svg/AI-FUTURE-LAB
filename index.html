@@ -1,0 +1,486 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>AI Future Lab — Curiosity Explorer (Frontend only)</title>
+
+  <!-- Libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.9.0/dist/tf.min.js"></script>
+
+  <style>
+    :root{
+      --bg:#071627; --card:#0f1720; --accent:#ff6b6b; --muted:#9fb0c8;
+    }
+    *{box-sizing:border-box}
+    body{margin:0; font-family:Inter,Arial,sans-serif; background:linear-gradient(90deg,#071627 0%,#0b2740 100%); color:#e8f1f8}
+    header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;background:rgba(0,0,0,0.25)}
+    header h1{margin:0;color:var(--accent)}
+    nav{display:flex;gap:8px}
+    .navbtn{padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:var(--muted);cursor:pointer}
+    .navbtn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+    main{max-width:1100px;margin:18px auto;padding:14px;display:grid;grid-template-columns:1fr 420px;gap:14px}
+    .section{background:var(--card);border-radius:10px;padding:14px;box-shadow:0 8px 30px rgba(0,0,0,0.4)}
+    .full{grid-column:1/ -1}
+    h2{margin:0 0 8px;color:#ffd27a}
+    .form-row{display:flex;gap:8px;flex-wrap:wrap}
+    label{display:flex;flex-direction:column;color:var(--muted);font-size:13px}
+    input,select{padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:#fff;min-width:120px}
+    button{background:var(--accent);color:white;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:700}
+    small.hint{color:var(--muted);display:block;margin-top:6px}
+    canvas{background:linear-gradient(#071b29,#06293d);border-radius:8px;display:block;max-width:100%}
+    pre{background:#041223;color:#cfeefc;padding:8px;border-radius:8px;height:150px;overflow:auto}
+    /* Game */
+    #gameArea{position:relative; padding:12px; border-radius:10px; background:linear-gradient(180deg,#7ad7f0,#2da6d1)}
+    #gameCanvas{display:block;margin:0 auto;border-radius:6px;background:transparent}
+    .scorebox{position:absolute;left:14px;top:14px;background:rgba(0,0,0,0.2);padding:8px 10px;border-radius:8px;font-weight:800}
+    .pausebtn{position:absolute;right:14px;top:14px;background:rgba(0,0,0,0.2);padding:6px 10px;border-radius:8px;cursor:pointer}
+    @media (max-width:980px){main{grid-template-columns:1fr} .full{grid-column:auto}}
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>🤖 AI Future Lab — Curiosity Explorer</h1>
+      <div style="font-size:12px;color:var(--muted)">Frontend-only demo • TF.js models • Charts • Game</div>
+    </div>
+
+    <nav aria-label="main nav">
+      <button class="navbtn active" data-show="data">Data</button>
+      <button class="navbtn" data-show="ai">AI</button>
+      <button class="navbtn" data-show="game">Game</button>
+      <button class="navbtn" data-show="about">About</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- Data + ML -->
+    <section id="data" class="section">
+      <h2>📊 Data Science Playground</h2>
+      <div class="form-row">
+        <button id="genBtn">🔁 Generate dataset</button>
+        <button id="exploreBtn">📈 Explore (charts)</button>
+      </div>
+      <small class="hint">Synthetic dataset: age, height, weight, BMI, sleep, score, bpm, risk.</small>
+
+      <div style="display:flex;gap:12px;margin-top:12px;flex-wrap:wrap">
+        <div style="flex:1;min-width:260px">
+          <h3 style="margin-top:0">Dataset summary</h3>
+          <pre id="summary">No dataset yet. Generate one.</pre>
+        </div>
+        <div style="flex:1;min-width:260px">
+          <h3 style="margin-top:0">Training controls</h3>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button id="trainAll">🚀 Train All</button>
+            <button id="trainHealth">Train Health</button>
+            <button id="trainBpm">Train BPM</button>
+            <button id="trainMood">Train Mood</button>
+          </div>
+          <small class="hint">Models are tiny for demo speed (few seconds).</small>
+          <h4 style="margin:10px 0 4px">Logs</h4>
+          <pre id="logBox">Ready.</pre>
+        </div>
+      </div>
+
+      <div style="margin-top:12px">
+        <canvas id="histChart" height="140"></canvas>
+        <canvas id="scatterChart" height="180" style="margin-top:12px"></canvas>
+      </div>
+    </section>
+
+    <!-- Right column: predictions -->
+    <section id="ai" class="section">
+      <h2>🤖 AI / Predictions</h2>
+
+      <div class="form-row">
+        <label>Age<input id="pred_age" type="number" value="25"></label>
+        <label>Weight(kg)<input id="pred_weight" type="number" value="68"></label>
+        <label>Height(cm)<input id="pred_height" type="number" value="168"></label>
+        <label>Sleep(hrs)<input id="pred_sleep" type="number" value="7"></label>
+      </div>
+
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button id="btnPredictHealth">🔮 Predict Health</button>
+        <button id="btnPredictBpm">🫀 Predict BPM</button>
+        <button id="btnPredictMood">🙂 Predict Mood</button>
+      </div>
+
+      <div style="margin-top:12px">
+        <h4 style="margin:6px 0">Result</h4>
+        <pre id="predResult">No prediction yet.</pre>
+      </div>
+
+      <hr style="opacity:0.06;margin:12px 0">
+
+      <h3>🔮 Future Message</h3>
+      <button id="btnFuture">✨ Surprise me</button>
+      <div id="futureBox" style="margin-top:10px;color:#fff"></div>
+    </section>
+
+    <!-- Game (full width under main in small screens) -->
+    <section id="game" class="section full" style="display:none">
+      <h2>🎮 Subway-Sub — 3-lane Runner</h2>
+      <div id="gameArea" style="border-radius:10px;padding:12px;position:relative">
+        <div class="scorebox" id="scoreBox">Score: 0</div>
+        <div class="pausebtn" id="pauseBtn">⏸ Pause</div>
+        <canvas id="gameCanvas" width="760" height="340"></canvas>
+      </div>
+      <small class="hint">Click canvas or press R to (re)start. Arrows ← → to change lane, Up/Space to jump.</small>
+    </section>
+
+    <section id="about" class="section" style="display:none">
+      <h2>ℹ️ About & Tech</h2>
+      <p style="color:var(--muted)">This demo runs fully in the browser. Models use TensorFlow.js. Charts use Chart.js. The game uses HTML5 canvas.</p>
+      <ul style="text-align:left;color:var(--muted)">
+        <li>&lt;canvas&gt; for game & charts</li>
+        <li>tfjs for in-browser ML</li>
+        <li>Chart.js for charts</li>
+        <li>Vanilla JS for UI & logic</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer style="text-align:center;padding:12px;color:var(--muted)">Built for Kyvariate 2k25 — Frontend demo</footer>
+
+<script>
+/* =========== Utilities & Data =========== */
+let dataset = null;
+function genDataset(n=500){
+  const rows = [];
+  for(let i=0;i<n;i++){
+    const age = Math.floor(Math.random()*60)+15; //15-74
+    const height = Math.round(150 + Math.random()*40); //150-190
+    const weight = Math.round(45 + Math.random()*60); //45-105
+    const bmi = +(weight / ((height/100)**2)).toFixed(2);
+    const sleep = +(3 + Math.random()*7).toFixed(1);
+    // score (synthetic): higher when sleep ~7-8 and bmi near 22
+    const sleepEffect = -Math.abs(sleep-7.5)+7.5; 
+    const bmiEffect = Math.max(0,25 - Math.abs(bmi-22));
+    const score = Math.round(Math.max(0, Math.min(100, sleepEffect*6 + bmiEffect + (Math.random()*6-3))));
+    const risk = bmi > 30 ? 2 : (bmi > 25 ? 1 : 0);
+    const bpm = +(75 - 0.05*age + 0.45*(bmi-22) + (Math.random()*4-2)).toFixed(2);
+    rows.push({age,height,weight,bmi,sleep,score,risk,bpm});
+  }
+  dataset = rows;
+  return rows;
+}
+
+function showSummary(){
+  if(!dataset){ document.getElementById('summary').textContent = 'No dataset — click Generate dataset'; return; }
+  const n = dataset.length;
+  const avg = arr => (arr.reduce((s,v)=>s+v,0)/arr.length).toFixed(2);
+  const meanBMI = avg(dataset.map(r=>r.bmi)), meanScore = avg(dataset.map(r=>r.score)), meanSleep = avg(dataset.map(r=>r.sleep));
+  const counts = dataset.reduce((acc,r)=>{ acc[r.risk] = (acc[r.risk]||0)+1; return acc; },{});
+  document.getElementById('summary').textContent = `Rows: ${n}\nAvg BMI: ${meanBMI}\nAvg Score: ${meanScore}\nAvg Sleep: ${meanSleep}\nRiskCounts: ${JSON.stringify(counts)}`;
+}
+
+/* =========== Charts =========== */
+let histChart=null, scatterChart=null;
+function drawCharts(){
+  if(!dataset) return;
+  const bmis = dataset.map(r=>r.bmi);
+  const labels=['<18.5','18.5-25','25-30','30+'];
+  const counts=[0,0,0,0];
+  bmis.forEach(v=>{ if(v<18.5) counts[0]++; else if(v<25) counts[1]++; else if(v<30) counts[2]++; else counts[3]++;});
+  const hctx = document.getElementById('histChart').getContext('2d');
+  if(histChart) histChart.destroy();
+  histChart = new Chart(hctx,{type:'bar',data:{labels,datasets:[{label:'Count',data:counts,backgroundColor:['#7ee1b3','#ffd27a','#ffb86b','#ff6b6b']}]},options:{plugins:{legend:{display:false}}}});
+
+  const sctx = document.getElementById('scatterChart').getContext('2d');
+  if(scatterChart) scatterChart.destroy();
+  scatterChart = new Chart(sctx,{type:'scatter',data:{datasets:[{label:'Sleep vs Score',data:dataset.map(r=>({x:r.sleep,y:r.score})),backgroundColor:'#7ad7f0'}]},options:{scales:{x:{title:{display:true,text:'Sleep (hrs)'}},y:{title:{display:true,text:'Score'}}}}});
+}
+
+/* =========== Logging =========== */
+function log(msg){ const p=document.getElementById('logBox'); p.textContent += msg + '\n'; p.scrollTop = p.scrollHeight; }
+
+/* =========== TF.js Models (tiny/demo) =========== */
+const models = {health:null, bpm:null, mood:null};
+const trained = {health:false, bpm:false, mood:false};
+
+/* Train Health Classifier (softmax 3 classes) */
+async function trainHealth(){
+  if(!dataset) genDataset(500), drawCharts(), showSummary();
+  log('Training health classifier...');
+  const xs = dataset.map(r=>[r.age, r.weight, r.height, r.bmi]);
+  const ys = dataset.map(r=>{ const arr=[0,0,0]; arr[r.risk]=1; return arr; });
+  const X = tf.tensor2d(xs);
+  const Y = tf.tensor2d(ys);
+  const m = tf.sequential();
+  m.add(tf.layers.dense({units:32,activation:'relu',inputShape:[4]}));
+  m.add(tf.layers.dense({units:16,activation:'relu'}));
+  m.add(tf.layers.dense({units:3,activation:'softmax'}));
+  m.compile({optimizer:tf.train.adam(0.01), loss:'categoricalCrossentropy', metrics:['accuracy']});
+  await m.fit(X,Y,{epochs:20, batchSize:32, callbacks:{
+    onEpochEnd: async (epoch, logs) => { log(`Health epoch ${epoch+1} loss:${logs.loss.toFixed(4)} acc:${(logs.acc||logs.acc).toFixed? (logs.acc||'') : ''}`); await tf.nextFrame(); }
+  }});
+  models.health = m; trained.health = true;
+  X.dispose(); Y.dispose();
+  log('Health model trained.');
+}
+
+/* Train BPM regressor */
+async function trainBpm(){
+  if(!dataset) genDataset(500), drawCharts(), showSummary();
+  log('Training BPM regressor...');
+  const xs = dataset.map(r=>[r.age, r.bmi]);
+  const ys = dataset.map(r=>[r.bpm]);
+  const X = tf.tensor2d(xs), Y = tf.tensor2d(ys);
+  const m = tf.sequential();
+  m.add(tf.layers.dense({units:24,activation:'relu',inputShape:[2]}));
+  m.add(tf.layers.dense({units:12,activation:'relu'}));
+  m.add(tf.layers.dense({units:1}));
+  m.compile({optimizer:tf.train.adam(0.01), loss:'meanSquaredError'});
+  await m.fit(X,Y,{epochs:16, batchSize:24, callbacks:{
+    onEpochEnd: async (epoch, logs) => { log(`BPM epoch ${epoch+1} loss:${logs.loss.toFixed(4)}`); await tf.nextFrame(); }
+  }});
+  models.bpm = m; trained.bpm = true;
+  X.dispose(); Y.dispose();
+  log('BPM model trained.');
+}
+
+/* Train Mood classifier (synthetic Qs) */
+async function trainMood(){
+  if(!dataset) genDataset(500), drawCharts(), showSummary();
+  log('Training Mood classifier...');
+  const xs=[], ys=[];
+  for(let i=0;i<dataset.length;i++){
+    const q1=Math.floor(Math.random()*11), q2=Math.floor(Math.random()*11), q3=Math.floor(Math.random()*11);
+    const sum=q1+q2+q3; const label = sum>22?2:(sum>11?1:0);
+    xs.push([q1,q2,q3]); ys.push([label===0?1:0,label===1?1:0,label===2?1:0]);
+  }
+  const X = tf.tensor2d(xs), Y = tf.tensor2d(ys);
+  const m = tf.sequential();
+  m.add(tf.layers.dense({units:18,activation:'relu',inputShape:[3]}));
+  m.add(tf.layers.dense({units:12,activation:'relu'}));
+  m.add(tf.layers.dense({units:3,activation:'softmax'}));
+  m.compile({optimizer:tf.train.adam(0.01), loss:'categoricalCrossentropy', metrics:['accuracy']});
+  await m.fit(X,Y,{epochs:18,batchSize:32,callbacks:{
+    onEpochEnd: async (epoch, logs) => { log(`Mood epoch ${epoch+1} loss:${logs.loss.toFixed(4)}`); await tf.nextFrame(); }
+  }});
+  models.mood = m; trained.mood = true;
+  X.dispose(); Y.dispose();
+  log('Mood model trained.');
+}
+
+/* Hook training UI */
+document.getElementById('genBtn').addEventListener('click', ()=>{ genDataset(500); drawCharts(); showSummary(); log('Dataset generated'); });
+document.getElementById('exploreBtn').addEventListener('click', ()=>{ if(!dataset) genDataset(500); drawCharts(); showSummary(); log('Exploration shown'); });
+document.getElementById('trainHealth').addEventListener('click', ()=>trainHealth());
+document.getElementById('trainBpm').addEventListener('click', ()=>trainBpm());
+document.getElementById('trainMood').addEventListener('click', ()=>trainMood());
+document.getElementById('trainAll').addEventListener('click', async ()=>{ await trainHealth(); await trainBpm(); await trainMood(); log('All models trained'); });
+
+/* =========== Prediction UI =========== */
+function fallbackHealth(age,weight,height){
+  const bmi = +(weight / ((height/100)**2)).toFixed(2);
+  const risk = bmi > 30 ? 'High Risk' : (bmi > 25 ? 'Medium Risk' : 'Low Risk');
+  return {bmi, risk, method:'fallback'};
+}
+document.getElementById('btnPredictHealth').addEventListener('click', async ()=>{
+  const age=+document.getElementById('pred_age').value, weight=+document.getElementById('pred_weight').value, height=+document.getElementById('pred_height').value;
+  if(!age || !weight || !height){ document.getElementById('predResult').textContent='Please enter age, weight, height.'; return; }
+  if(trained.health && models.health){
+    const bmi = +(weight / ((height/100)**2)).toFixed(2);
+    const input = tf.tensor2d([[age,weight,height,bmi]]);
+    const out = models.health.predict(input);
+    const arr = await out.array(); input.dispose(); out.dispose();
+    const idx = arr[0].indexOf(Math.max(...arr[0]));
+    const map = {0:'Low Risk',1:'Medium Risk',2:'High Risk'};
+    document.getElementById('predResult').textContent = `BMI: ${bmi}\nPredicted: ${map[idx]}\nProbs: ${arr[0].map(v=>v.toFixed(2)).join(', ')}`;
+  } else {
+    const r = fallbackHealth(age,weight,height);
+    document.getElementById('predResult').textContent = `BMI: ${r.bmi}\nPredicted: ${r.risk} (fallback rule)`;
+  }
+});
+
+document.getElementById('btnPredictBpm').addEventListener('click', async ()=>{
+  const age=+document.getElementById('pred_age').value, weight=+document.getElementById('pred_weight').value, height=+document.getElementById('pred_height').value;
+  if(!age||!weight||!height){ document.getElementById('predResult').textContent='Enter inputs.'; return; }
+  const bmi = +(weight / ((height/100)**2)).toFixed(2);
+  if(trained.bpm && models.bpm){
+    const input = tf.tensor2d([[age,bmi]]);
+    const out = models.bpm.predict(input); const arr = await out.array();
+    input.dispose(); out.dispose();
+    document.getElementById('predResult').textContent = `Predicted resting BPM: ${arr[0][0].toFixed(2)}`;
+  } else {
+    const approx = 75 - 0.05*age + 0.45*(bmi-22);
+    document.getElementById('predResult').textContent = `Predicted BPM (fallback): ${approx.toFixed(2)}`;
+  }
+});
+
+document.getElementById('btnPredictMood').addEventListener('click', async ()=>{
+  if(trained.mood && models.mood){
+    const q1=Math.floor(Math.random()*11), q2=Math.floor(Math.random()*11), q3=Math.floor(Math.random()*11);
+    const input = tf.tensor2d([[q1,q2,q3]]);
+    const out = models.mood.predict(input); const arr = await out.array();
+    input.dispose(); out.dispose();
+    const idx = arr[0].indexOf(Math.max(...arr[0])); const map={0:'Sad',1:'Neutral',2:'Happy'};
+    document.getElementById('predResult').textContent = `Q: ${q1},${q2},${q3}\nMood: ${map[idx]} (probs: ${arr[0].map(v=>v.toFixed(2)).join(', ')})`;
+  } else {
+    // fallback: random mood
+    const moods=['Sad','Neutral','Happy']; document.getElementById('predResult').textContent = `Mood (fallback): ${moods[Math.floor(Math.random()*moods.length)]}`;
+  }
+});
+
+/* Future message */
+const futurePool = ["Small experiments bring big surprises.","Start one tiny project today—72% chance it helps later.","You will learn something new that shapes your path."];
+document.getElementById('btnFuture').addEventListener('click', ()=>{ const r=Math.random(); let msg=futurePool[Math.floor(Math.random()*futurePool.length)]; if(r<0.12) msg="🎁 EASTER: Secret dataset unlocked!"; document.getElementById('futureBox').innerText = msg; });
+
+/* =========== Navigation =========== */
+document.querySelectorAll('.navbtn').forEach(btn=>{
+  btn.addEventListener('click', ()=> {
+    document.querySelectorAll('.navbtn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const id = btn.getAttribute('data-show');
+    ['data','ai','game','about'].forEach(k=>document.getElementById(k).style.display = (k===id)? 'block' : 'none');
+  });
+});
+
+/* =========== Game (isolated & robust) =========== */
+(function(){
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const lanes = [W*0.2, W*0.5, W*0.8];
+  const groundY = H - 60;
+
+  let player = {lane:1, x:lanes[1], y:groundY, w:44, h:56, vy:0, jumping:false, alive:true};
+  let state = {running:false, score:0, speed:3.2, obstacles:[], powerups:[], spawnTimer:0, spawnInterval:100, lastTime:0};
+
+  function spawnEntity(){
+    // spawn occasional obstacles and powerups
+    if(state.spawnTimer++ < state.spawnInterval) return;
+    state.spawnTimer = 0;
+    if(Math.random() < 0.75){
+      const lane = Math.floor(Math.random()*3);
+      const size = Math.random() < 0.12 ? 1.6 : (Math.random() < 0.18 ? 1.2 : 1);
+      state.obstacles.push({lane, x: W + 60, w:36*size, h:36*size, color:'#ff4b5c', passed:false});
+    } else {
+      state.powerups.push({lane:Math.floor(Math.random()*3), x:W+60, r:10, color:'#7ee1b3'});
+    }
+  }
+
+  function update(dt){
+    // adjust spawn interval as score increases
+    state.spawnInterval = Math.max(40, 100 - Math.floor(state.score/30));
+    state.speed += 0.0005 * dt;
+
+    // update entities
+    for(let o of state.obstacles) o.x -= state.speed;
+    for(let p of state.powerups) p.x -= state.speed;
+    state.obstacles = state.obstacles.filter(o => o.x + o.w > -40);
+    state.powerups = state.powerups.filter(p => p.x > -40);
+
+    // player physics
+    if(player.jumping){
+      player.vy += 0.9 * (dt/16);
+      player.y += player.vy * (dt/16);
+      if(player.y >= groundY){ player.y = groundY; player.jumping=false; player.vy=0; }
+    } else player.y = groundY;
+
+    // collisions
+    for(let ob of state.obstacles){
+      if(ob.lane !== player.lane) continue;
+      const px = player.x, pTop = player.y - player.h, pBot = player.y;
+      const ox = ob.x, oTop = groundY - ob.h, oBot = groundY;
+      const overlapX = Math.abs(px - ox) < (player.w/2 + ob.w/2 - 6);
+      const overlapY = !(pBot < oTop || pTop > oBot);
+      if(overlapX && overlapY && !player.jumping){
+        player.alive = false; state.running = false;
+      }
+      if(!ob.passed && ob.x < player.x){ ob.passed = true; state.score += 6; }
+    }
+
+    // powerups
+    for(let i=state.powerups.length-1;i>=0;i--){
+      const p = state.powerups[i];
+      if(p.lane===player.lane && Math.abs(p.x - player.x) < 30 && !player.jumping){
+        state.score += 30; state.powerups.splice(i,1); state.speed += 0.4;
+      }
+    }
+
+    state.score += 0.02 * (dt/16) * (state.speed/2);
+  }
+
+  function render(){
+    // background
+    const g = ctx.createLinearGradient(0,0,0,H);
+    g.addColorStop(0,'#7ad7f0'); g.addColorStop(1,'#2da6d1');
+    ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+
+    // road
+    ctx.fillStyle = '#1b2b34';
+    ctx.fillRect(0, groundY+20, W, H - (groundY+20));
+
+    // obstacles/powerups
+    for(let ob of state.obstacles){ ctx.fillStyle = ob.color; roundRect(ctx, ob.x - ob.w/2, groundY - ob.h, ob.w, ob.h, 6, true); }
+    for(let p of state.powerups){ ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(p.x, groundY-28, p.r,0,Math.PI*2); ctx.fill(); }
+
+    // player
+    ctx.save(); ctx.translate(player.x, player.y - player.h/2); ctx.fillStyle = '#ffec99'; roundRect(ctx, -player.w/2, 0, player.w, player.h, 8, true); ctx.restore();
+
+    document.getElementById('scoreBox').innerText = `Score: ${Math.floor(state.score)}`;
+    if(!state.running && !player.alive){
+      ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(0,0,W,H);
+      ctx.fillStyle = '#fff'; ctx.font='22px Inter,Arial'; ctx.textAlign='center';
+      ctx.fillText('Crashed! Press R to restart', W/2, H/2 - 6);
+      ctx.fillText('Final: ' + Math.floor(state.score), W/2, H/2 + 26);
+    }
+  }
+
+  function loop(now){
+    const dt = now - (state.lastTime || now); state.lastTime = now;
+    if(state.running) {
+      spawnEntity();
+      update(dt);
+    }
+    render();
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+
+  // helpers
+  function roundRect(ctx,x,y,w,h,r,fill){ if(fill===undefined) fill=true; ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); if(fill) ctx.fill(); else ctx.stroke(); }
+
+  // controls
+  function moveLeft(){ if(!player.alive) return; player.lane = Math.max(0, player.lane-1); player.x = lanes[player.lane]; }
+  function moveRight(){ if(!player.alive) return; player.lane = Math.min(2, player.lane+1); player.x = lanes[player.lane]; }
+  function jump(){ if(!player.alive) return; if(!player.jumping){ player.jumping = true; player.vy = -14; } }
+
+  window.addEventListener('keydown', (e)=>{
+    if(e.key==='ArrowLeft') moveLeft();
+    if(e.key==='ArrowRight') moveRight();
+    if(e.key==='ArrowUp' || e.key===' ') jump();
+    if(e.key.toLowerCase()==='r'){ start(); }
+  });
+
+  document.getElementById('pauseBtn').addEventListener('click', ()=>{
+    state.running = !state.running;
+    document.getElementById('pauseBtn').innerText = state.running ? '⏸ Pause' : '▶ Resume';
+  });
+
+  // click to start or jump
+  canvas.addEventListener('click', ()=>{
+    if(!state.running){ start(); } else jump();
+  });
+  canvas.addEventListener('touchstart', (ev)=>{ ev.preventDefault(); if(!state.running) start(); else jump(); });
+
+  function start(){
+    player = {lane:1, x:lanes[1], y:groundY, w:44, h:56, vy:0, jumping:false, alive:true};
+    state.running = true; state.score = 0; state.speed = 3.2; state.obstacles = []; state.powerups = []; state.spawnTimer = 0; state.lastTime = 0;
+  }
+
+  // launch small initial state
+  start();
+
+})(); /* end game IIFE */
+
+
+// initial small setup
+genDataset(500); drawCharts(); showSummary(); log('Ready — generate and/or train models, then predict.');
+
+</script>
+</body>
+</html>
